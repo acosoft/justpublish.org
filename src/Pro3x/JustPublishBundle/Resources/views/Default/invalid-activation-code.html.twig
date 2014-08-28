@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>justpublish.org</title>
+<link href='http://fonts.googleapis.com/css?family=Rock+Salt' rel='stylesheet' type='text/css'>
+
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+
+<style type="text/css" media="screen">
+    body
+        { padding: 0px; margin: 0px; }
+        
+    #menu
+        { font-family: 'Rock Salt', cursive; font-size: 36px; margin-bottom: 25px; margin-top: 225px; }
+        
+    #menu a:hover
+        { text-decoration: none; }
+        
+    .alert-link:hover
+        { text-decoration: none; }
+    
+</style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <div class="col-md-6 col-md-offset-3" style="text-align: center;">
+            <div id="menu" class="text-primary"><a href="{{ path('home') }}">JustPublish.org</a></div>
+
+            <div id="jp-query-box">
+                <div id="jp-error" class="alert alert-danger">
+                    Invalid activation code for <strong><a class="alert-link" href="{{ path('show', {'location': location}) }}">{{ location }}</strong>!
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</body>
+</html>

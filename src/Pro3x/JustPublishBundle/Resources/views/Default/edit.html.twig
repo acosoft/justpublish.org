@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>justpublish.org</title>
+<link href='http://fonts.googleapis.com/css?family=Rock+Salt' rel='stylesheet' type='text/css'>
+
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+
+<style type="text/css" media="screen">
+    #editor-box { 
+        position: absolute;
+        top: 55px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        
+        background-color: black;
+    }
+    
+    #editor
+    {
+        position: absolute;
+        top: 5px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        
+        font-size: 16px;
+    }
+    
+    body
+        { padding: 0px; margin: 0px; }
+        
+    #menu
+        {  position: absolute; top: 12px; left: 10px; z-index: 100; font-family: 'Rock Salt', cursive; font-size: 24px; }
+        
+    #menu a:hover
+        { text-decoration: none; }
+        
+    #jp-save-box
+        { position: absolute; top: 11px; right: 11px; width: 350px; }
+    
+</style>
+</head>
+<body>
+
+    <div id="jp-header">
+        <div id="menu"><a href="{{ path('home') }}">JustPublish.org</a></div>
+        
+        <img src="{{ asset('ajax-loader.gif') }}" style="position: absolute; right: 22px; top: 22px;" />
+        
+        {% if showEmail == true %}
+            <div id="jp-save-box" class="input-group">
+                <input id="jp-email" type="email" value="{{ email }}" class="form-control" placeholder="Enter your email and publish content" />
+                <span class="input-group-btn"><button id="jp-save" class="btn btn-primary" style="width: 85px">Publish</button></span>
+            </div>
+        {% else %}
+            {% include 'Pro3xJustPublishBundle:Default:save-changes.html.twig' %}
+        {% endif %}
+
+        <div id="editor-box">
+            <div id="editor" style="visibility: hidden;">{{ body }}</div>
+        </div>
+    </div>
+    
+<div id="jp-message-box" class="modal fade">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+        <h3 class="modal-title"><span style="color: red;" class="glyphicon glyphicon-fire"></span> <span id="jp-title"></span></h3>
+      </div>
+      <div class="modal-body">
+        <p id="jp-message"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" style="width: 85px;" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+    
+<script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/ace.js" type="text/javascript" charset="utf-8"></script>
+<script>
+    var editor = ace.edit("editor");
+    
+    editor.setShowPrintMargin(false);
+    editor.renderer.setPadding(10);
+    editor.renderer.setShowGutter(false);
+    
+    editor.setTheme("ace/theme/tomorrow_night_blue");
+    editor.getSession().setMode("ace/mode/html");
+    
+    editor.moveCursorTo(7, 27);
+    editor.focus();
+    
+    editor.commands.addCommand({
+        name: 'save',
+        bindKey: {win: 'Ctrl-S',  mac: 'Command-S'},
+        exec: save,
+        readOnly: false
+    });
+    
+    editor.commands.addCommand({
+        name: "unfind",
+        bindKey: {
+            win: "Ctrl-F",
+            mac: "Command-F"
+        },
+        exec: function() {
+            return false;
+        },
+        readOnly: true
+    });
+    
+    function msgbox(data) {
+        $('#jp-title').text(data.title);
+        $('#jp-message').html(data.message);
+        $('#jp-message-box').modal('show');
+    }
+    
+    function params()
+    {
+        return { body: editor.getValue(), email: $('#jp-email').val() };
+    }
+     
+    function save()
+    {
+        $('#jp-save-box').animate({top: '-=100'});
+        
+        $.post("{{ path('save', {'location': location}) }}", params(), function(data) {
+            if(data.valid) {
+                if(data.replace) {
+                    var sc = $(data.replace);
+                    $('#jp-save-box').replaceWith(sc);
+                    sc.css('top', -100).animate({top: '11'});
+                } else {
+                    $('#jp-save-box').animate({top: '11'});
+                }
+            } else {
+                msgbox(data);
+                $('#jp-save-box').animate({top: '11'});
+            }
+        }, 'json')
+    }
+    
+    jQuery(document).ready(function($) {
+        $('#jp-save').click(save);
+        
+        $('#jp-header').on('click', '#jp-save-changes', save);
+        
+        $('#jp-email').keypress(function(event) {
+            if(event.which == 13) {
+                save();
+            }
+        });
+    });
+    
+    document.getElementById('editor').style.setProperty("visibility", "visible")
+    
+</script>
+</body>
+</html>

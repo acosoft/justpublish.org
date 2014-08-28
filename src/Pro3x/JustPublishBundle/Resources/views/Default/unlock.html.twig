@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>justpublish.org</title>
+<link href='http://fonts.googleapis.com/css?family=Rock+Salt' rel='stylesheet' type='text/css'>
+
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+
+<style type="text/css" media="screen">
+    body
+        { padding: 0px; margin: 0px; }
+        
+    #menu
+        { font-family: 'Rock Salt', cursive; font-size: 36px; margin-bottom: 25px; margin-top: 175px; }
+        
+    #menu a:hover
+        { text-decoration: none; }
+        
+    .alert-link:hover
+        { text-decoration: none; }
+    
+</style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <div class="col-md-6 col-md-offset-3" style="text-align: center;">
+            <div id="menu" class="text-primary"><a href="{{ path('home') }}">JustPublish.org</a></div>
+
+            <div id="jp-query-box">
+                <div id="jp-info" class="alert alert-success" role="alert">
+                    You must enter secret key for <strong>{{ location }}</strong>
+                </div>
+                
+                <div id="jp-error" class="alert alert-danger" style="display: none;">
+                    <strong>Invalid secret key!</strong> Please try again!
+                </div>
+
+                <div class="input-group jp-save">
+                    <input id="jp-query" type="search" class="form-control" placeholder="Enter secret key" />
+                    <span class="input-group-btn"><button id="jp-start" type="submit" class="btn btn-primary" style="">Unlock for edit</button></span>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+<script>
+    
+    function query()
+    {
+        $.post("{{ path('check', {'location': location}) }}", { code: $('#jp-query').val() }, function(data) {
+            if(data.valid) {
+                window.location = data.location;
+            }
+            else {
+                $('#jp-error').slideDown();
+            }
+        }, 'json')
+    }
+    
+    jQuery(document).ready(function($) {
+        $('#jp-start').click(query);
+        
+        $('#jp-query').focus(function() {
+            $('#jp-error').slideUp();
+        });
+                
+        $('#jp-query').keypress(function(event) {
+           if(event.which === 13) {
+               query();
+               $('#jp-query').blur();
+           }
+        });
+    });
+    
+</script>
+</body>
+</html>

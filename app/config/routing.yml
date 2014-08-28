@@ -1,0 +1,5 @@
+pro3x_just_publish:
+    resource: "@Pro3xJustPublishBundle/Controller/"
+    type:     annotation
+    prefix:   /
+

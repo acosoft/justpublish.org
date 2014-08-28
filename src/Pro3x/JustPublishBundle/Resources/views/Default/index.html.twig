@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>justpublish.org</title>
+<link href='http://fonts.googleapis.com/css?family=Rock+Salt' rel='stylesheet' type='text/css'>
+
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+
+<style type="text/css" media="screen">
+    body
+        { padding: 0px; margin: 0px; }
+        
+    #menu
+        { font-family: 'Rock Salt', cursive; font-size: 36px; margin-bottom: 25px; margin-top: 225px; }
+        
+    #menu a:hover
+        { text-decoration: none; }
+        
+    .alert-link:hover
+        { text-decoration: none; }
+    
+</style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <div class="col-md-6 col-md-offset-3" style="text-align: center;">
+            <div id="menu" class="text-primary"><a href="{{ path('home') }}">JustPublish.org</a></div>
+
+            <div id="jp-query-box">
+                <div id="jp-info" class="alert alert-info" style="display: none;" role="alert">
+                    <strong>Hej!</strong> Content at this location is already created.
+                    <span style="margin-left: 0px;">
+                        <a class="alert-link" id="jp-show" href="#">Show</a> | 
+                        <a class="alert-link" id="jp-edit" href="#">Edit</a>
+                    </span>
+                </div>
+                
+                <div class="input-group jp-save">
+                    <input id="jp-query" type="search" class="form-control" placeholder="What would you like to create today?" />
+                    <span class="input-group-btn"><button id="jp-start" type="submit" class="btn btn-primary" style="width: 85px;">Start</button></span>
+                </div>
+
+            </div>
+        </div>
+        
+    </div>
+
+    <a style="position: absolute; top: 10px; right: 15px;" href="{{ path('show', {'location' : 'about'}) }}">About</a>
+<script>
+    
+    function query()
+    {
+        $.post("{{ path('create') }}", { query: $('#jp-query').val() }, function(data) {
+            $('#jp-query').val(data.location);
+            
+            if(data.available) {
+                window.location = data.edit;
+            }
+            else {
+                $('#jp-show').attr('href', data.location);
+                $('#jp-edit').attr('href', data.edit);
+                $('#jp-info').slideDown();
+            }
+        }, 'json')
+    }
+    
+    jQuery(document).ready(function($) {
+        $('#jp-start').click(query);
+        
+        $('#jp-query').focus(function() {
+            $('#jp-info').slideUp();
+        });
+        
+        $('#jp-query').keypress(function(event) {
+           if(event.which === 13) {
+               query();
+           }
+        });
+    });
+    
+</script>
+</body>
+</html>
