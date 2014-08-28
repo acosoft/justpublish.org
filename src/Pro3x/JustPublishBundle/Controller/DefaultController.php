@@ -119,9 +119,10 @@ class DefaultController extends Controller
     private function sendEmail($content)
     {
         $body = $this->renderView('Pro3xJustPublishBundle:Default:email.html.twig', array(
-            'location' => $this->generateUrl('show', array('location' => 'aco'), true),
+            'location' => $this->generateUrl('show', array('location' => $content->getLocation()), true),
             'activation' => $this->generateUrl('activate', array('code' => $content->getCode(), 'location' => $content->getLocation()), true),
-            'secret' => $content->getSecret()
+            'secret' => $content->getSecret(),
+            'edit' => $this->generateUrl('edit', array('location' => $content->getLocation()), true)
         ));
         
         $message = \Swift_Message::newInstance()
