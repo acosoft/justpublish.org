@@ -33,7 +33,13 @@ class DefaultController extends Controller
 
             if($content)
             {
-                $code = $request->cookies->get($location);
+                $code = $request->cookies->get(md5($location));
+                
+                //compatibility layer, check cookie by location
+                if($code == null)
+                {
+                    $code = $request->cookies->get($location);
+                }
                 
                 if($code == $content->getSecret())
                 {
