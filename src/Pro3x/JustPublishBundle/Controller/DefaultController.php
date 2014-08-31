@@ -23,7 +23,7 @@ class DefaultController extends Controller
         
         if($location)
         {
-            $location = preg_replace(array('#[^a-z0-9\s\-]#', '#\s+\-*#'), array('', '-'), $location);
+            $location = preg_replace(array('#[^a-z0-9\s\-\.]#', '#\s+\-*#'), array('', '-'), $location);
 
             $content = $this->getDoctrine()->getRepository('Pro3xJustPublishBundle:Content')->find($location);
 
@@ -159,7 +159,7 @@ class DefaultController extends Controller
         $result['code'] = $code;
         
         $response = new Response(json_encode($result));
-        $response->headers->setCookie(new Cookie($location, $code));
+        $response->headers->setCookie(new Cookie(md5($location), $code));
         
         return $response;
     }
@@ -178,7 +178,14 @@ class DefaultController extends Controller
         
         if($content)
         {
-            $code = $request->cookies->get($location);
+            $code = $request->cookies->get(md5($location));
+            
+            //compatibility layer, check cookie by location
+            if($code == null)
+            {
+                $code = $request->cookies->get($location);
+            }
+            
             if($code == $content->getSecret())
             {
                 $params['body'] = $content->getBody();
@@ -296,7 +303,7 @@ class DefaultController extends Controller
             $view = $this->renderView('Pro3xJustPublishBundle:Default:save-changes.html.twig', array('location' => $location));
             
             $response = new Response(json_encode(array('valid' => true, 'replace' => $view)));
-            $response->headers->setCookie(new Cookie($location, $content->getSecret(), time() + (3600 * 24 * 7)));
+            $response->headers->setCookie(new Cookie(md5($location), $content->getSecret(), time() + (3600 * 24 * 7)));
             
             if($updateEmail)
             {
