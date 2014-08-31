@@ -197,15 +197,36 @@ class DefaultController extends Controller
         return $params;
     }
     
+    private function isHome($host)
+    {
+        if(in_array($host, array('justpublish.org', 'localhost')))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    
     /**
      * @Route("/", name="home")
      * @Route("/edit")
      * @Template()
      */
-    public function indexAction()
+    public function indexAction(Request $request)
     {
-        return array('body' => $this->renderView("Pro3xJustPublishBundle:Default:welcome.html.twig"),
-            'location' => 'home');
+        $host = $request->getHttpHost();
+        
+        if($this->isHome($host))
+        {
+            return array('body' => $this->renderView("Pro3xJustPublishBundle:Default:welcome.html.twig"),
+                'location' => 'home');
+        }
+        else
+        {
+            return $this->showAction($host);
+        }
     }
     
     /**
