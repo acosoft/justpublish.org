@@ -2,22 +2,3 @@ pro3x_just_publish:
     resource: "@Pro3xJustPublishBundle/Controller/"
     type:     annotation
     prefix:   /
-
-location.edit:
-    path:   /{location}/edit
-    host:   "{host}"
-    
-location.show:
-    path:   /{location}
-    host:   "{host}"
-    
-location.activate:
-    path:   /activate/{location}/{code}
-    host:   "{host}"
-    
-    
-location.save:
-    path:   /{location}/save
-    host:   "{host}"   
-    requirements:
-        location: .+
