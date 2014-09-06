@@ -56,7 +56,8 @@
     {
         $.post("{{ path('check', {'location': location, 'host': app.request.httpHost}) }}", { code: $('#jp-query').val() }, function(data) {
             if(data.valid) {
-                window.location = data.location;
+                var back = '{{ app.request.get('back') }}';
+                window.location = (back)?back:data.location;
             }
             else {
                 $('#jp-error').slideDown();

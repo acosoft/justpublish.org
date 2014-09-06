@@ -202,6 +202,25 @@ class DefaultController extends Controller
         
         return $response;
     }
+    
+    /**
+     * @Route("/{domain}/{page}/edit", host="%domain%", requirements={"page"=".+"})
+     * @Method({"GET"})
+     */
+    public function editPageAction(Request $request, $domain, $page)
+    {
+        $location = $domain . '/' . $page;
+        $content = $this->findLocation($domain);
+        
+        if($content && $content->isValidSecret($this->findSecretCode($request, $domain)) == false)
+        {
+            return $this->renderUnlock($this->generateUrl('unlock', array('location' => $domain, 'back' => $request->getUri())));
+        }
+        else
+        {
+            return $this->editAction($request, $location);
+        }
+    }
 
     /**
      * @Route("/{location}/edit", name="edit", host="%domain%", requirements={"location"=".+"})
@@ -215,19 +234,28 @@ class DefaultController extends Controller
         
         return $this->editLocation($request, $location, $showUrl, $unlockUrl, $saveUrl);
     }
-    
+        
     /**
      * @Route("/{location}/edit", name="hostEdit", host="{host}", requirements={"location"=".*"})
      * @Method({"GET"})
      */
     public function hostEditAction(Request $request, $host, $location)
     {
-        $showUrl = $this->getShowUrl($host, $location);
-        $hostLocation = $this->getLocation($host, $location);
-        $unlockUrl = $this->generateUrl('hostUnlock', array('location' => $location, 'host' => $host));
-        $saveUrl = $this->generateUrl('hostSave', array('location' => $location, 'host' => $host));
+        $content = $this->findLocation($host);
         
-        return $this->editLocation($request, $hostLocation, $showUrl, $unlockUrl, $saveUrl);
+        if($content && $content->isValidSecret($this->findSecretCode($request, $host)) == false)
+        {
+            return $this->renderUnlock($this->generateUrl('hostUnlock', array('location' => $host, 'host' => $host, 'back' => $request->getUri())));
+        }
+        else
+        {
+            $showUrl = $this->getShowUrl($host, $location);
+            $hostLocation = $this->getLocation($host, $location);
+            $unlockUrl = $this->generateUrl('hostUnlock', array('location' => $location, 'host' => $host));
+            $saveUrl = $this->generateUrl('hostSave', array('location' => $location, 'host' => $host));
+
+            return $this->editLocation($request, $hostLocation, $showUrl, $unlockUrl, $saveUrl);
+        }
     }
     
     public function editLocation(Request $request, $location, $showUrl, $unlockUrl, $saveUrl)
