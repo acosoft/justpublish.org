@@ -194,4 +194,9 @@ class Content
         $this->activated = $activated;
         return $this;
     }
+    
+    public function isValidSecret($code)
+    {
+        return $this->secret == $code;
+    }
 }

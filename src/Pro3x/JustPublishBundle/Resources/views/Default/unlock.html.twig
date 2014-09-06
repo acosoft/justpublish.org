@@ -54,7 +54,7 @@
     
     function query()
     {
-        $.post("{{ path('check', {'location': location}) }}", { code: $('#jp-query').val() }, function(data) {
+        $.post("{{ path('check', {'location': location, 'host': app.request.httpHost}) }}", { code: $('#jp-query').val() }, function(data) {
             if(data.valid) {
                 window.location = data.location;
             }

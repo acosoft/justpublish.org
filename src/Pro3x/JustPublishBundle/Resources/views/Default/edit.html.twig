@@ -124,14 +124,14 @@
     
     function params()
     {
-        return { body: editor.getValue(), email: $('#jp-email').val() };
+        return { body: editor.getValue(), email: $('#jp-email').val(), 'showUrl': '{{ showUrl }}' };
     }
      
     function save()
     {
         $('#jp-save-box').animate({top: '-=100'});
         
-        $.post("{{ path('save', {'location': location}) }}", params(), function(data) {
+        $.post("{{ saveUrl }}", params(), function(data) {
             if(data.valid) {
                 if(data.replace) {
                     var sc = $(data.replace);

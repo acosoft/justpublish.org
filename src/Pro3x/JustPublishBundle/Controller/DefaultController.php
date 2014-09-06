@@ -23,7 +23,7 @@ class DefaultController extends Controller
         
         if($location)
         {
-            $location = preg_replace(array('#[^a-z0-9\s\-\.]#', '#\s+\-*#'), array('', '-'), $location);
+            $location = preg_replace(array('#[^a-z0-9\s\-\./]#', '#\s+\-*#'), array('', '-'), $location);
 
             $content = $this->getDoctrine()->getRepository('Pro3xJustPublishBundle:Content')->find($location);
 
@@ -33,15 +33,9 @@ class DefaultController extends Controller
 
             if($content)
             {
-                $code = $request->cookies->get(md5($location));
+                $code = $this->findSecretCode($request, $location);
                 
-                //compatibility layer, check cookie by location
-                if($code == null)
-                {
-                    $code = $request->cookies->get($location);
-                }
-                
-                if($code == $content->getSecret())
+                if($content->isValidSecret($code))
                 {
                     $params['available'] = true;
                     $params['edit'] = $this->generateUrl('edit', array('location' => $location));
@@ -83,14 +77,28 @@ class DefaultController extends Controller
             'secret' => $content->getSecret()
         );
     }
-        
+    
     /**
-     * @Route("/activate/{location}/{code}", name="activate")
+     * @Route("/activate/{location}/{code}", host="%domain%", name="activate", requirements={"location"=".+"})
      */
-    public function activateAction($location, $code)
+    public function activateAction(Request $request, $location, $code)
+    {
+        $host = $request->getHttpHost();
+        return $this->activateLocation($request, $request->getHttpHost(), $location, $location, $code);
+    }
+    
+    /**
+     * @Route("/activate/{location}/{code}", host="{host}", name="hostActivate", requirements={"location"=".+"})
+     */
+    public function hostActivateAction(Request $request, $host, $location, $code)
+    {
+        return $this->activateLocation($request, $host, $location, $this->getLocation($host, $location), $code);
+    }
+    
+    public function activateLocation(Request $request, $host, $location, $key, $code)
     {
         $manager = $this->getDoctrine()->getManager();
-        $content = $manager->getRepository('Pro3xJustPublishBundle:Content')->find($location); /* @var $content Content */
+        $content = $manager->getRepository('Pro3xJustPublishBundle:Content')->find($key); /* @var $content Content */
         
         if($content && $content->getCode() == $code)
         {
@@ -102,14 +110,14 @@ class DefaultController extends Controller
 
                 return $this->render('Pro3xJustPublishBundle:Default:activate.html.twig', array(
                     'location' => $location,
-                    'show' => $this->generateUrl('show', array('location' => $location))
+                    'show' => $this->generateUrl('show', array('location' => $location, 'host' => $host))
                 ));
             }
             else
             {
                 return $this->render('Pro3xJustPublishBundle:Default:activation-repeated.html.twig', array(
                     'location' => $location,
-                    'show' => $this->generateUrl('show', array('location' => $location))
+                    'show' => $this->generateUrl('show', array('location' => $location, 'host' => $host))
                 ));
             }
         }
@@ -118,32 +126,33 @@ class DefaultController extends Controller
             return $this->render('Pro3xJustPublishBundle:Default:invalid-activation-code.html.twig', array('location' => $location));
         }
     }
-    
+
     /**
-     * @param Content $content
+     * 
+     * @param \Pro3x\JustPublishBundle\Entity\EmailConfig $config
      */
-    private function sendEmail($content)
+    private function sendEmail($config)
     {
         $body = $this->renderView('Pro3xJustPublishBundle:Default:email.html.twig', array(
-            'location' => $this->generateUrl('show', array('location' => $content->getLocation()), true),
-            'activation' => $this->generateUrl('activate', array('code' => $content->getCode(), 'location' => $content->getLocation()), true),
-            'secret' => $content->getSecret(),
-            'edit' => $this->generateUrl('edit', array('location' => $content->getLocation()), true)
+            'location' => $config->getShowUrl(),
+            'activation' => $this->generateUrl($config->getActivateRoute(), $config->getActivationParams(), true),
+            'secret' => $config->getSecretKey(),
+            'edit' => $config->getEditUrl()
         ));
         
         $message = \Swift_Message::newInstance()
                 ->setSender('acosoft@gmail.com')
                 ->setFrom('acosoft@gmail.com', 'JustPublish.org')
-                ->setSubject("JustPublish.org: " . $content->getLocation())
-                ->setTo($content->getEmail())
+                ->setSubject("JustPublish.org: " . $config->getLocation())
+                ->setTo($config->getEmail())
                 ->setBody($body, 'text/html');
         
         $this->get('mailer')->send($message);
     }
     
     /**
-     * @Route("/unlock/{location}", name="unlock")
-     * @Template()
+     * @Route("/unlock/{location}", name="unlock", host="%domain%", requirements={"location"=".+"})
+     * @Template("Pro3xJustPublishBundle:Default:unlock.html.twig")
      */
     function unlockAction($location)
     {
@@ -151,9 +160,33 @@ class DefaultController extends Controller
     }
     
     /**
-     * @Route("/check/{location}", name="check")
+     * @Route("/unlock/{location}", name="hostUnlock", host="{host}", requirements={"location"=".+"})
+     * @Template("Pro3xJustPublishBundle:Default:unlock.html.twig")
+     */
+    function hostUnlockAction($location)
+    {
+        return array('location' => $location);
+    }
+    
+    /**
+     * @Route("/check/{location}", host="%domain%", requirements={"location"=".+"})
      */
     public function checkLockAction(Request $request, $location)
+    {
+        $editUrl = $this->generateUrl('edit', array('location' => $location));
+        return $this->verifySecret($request, $location, $request->getHttpHost(), $this->generateUrl('edit', array('location' => $location)));
+    }
+    
+    /**
+     * @Route("/check/{location}", name="check", host="{host}", requirements={"location"=".+"})
+     */
+    public function hostCheckLockAction(Request $request, $location, $host)
+    {
+        $editUrl = $this->getEditUrl($host, $location);
+        return $this->verifySecret($request, $this->getLocation($host, $location), $host, $editUrl);
+    }
+
+    public function verifySecret(Request $request, $location, $host, $editUrl)
     {
         $content = $this->getDoctrine()->getRepository('Pro3xJustPublishBundle:Content')->find($location); /* @var $content Content */
         $code = $request->get('code');
@@ -161,7 +194,7 @@ class DefaultController extends Controller
         $result = array();
         
         $result['valid'] = $content && $code && $content->getSecret() == $code;
-        $result['location'] = $this->generateUrl('edit', array('location' => $location));
+        $result['location'] = $editUrl;
         $result['code'] = $code;
         
         $response = new Response(json_encode($result));
@@ -170,36 +203,51 @@ class DefaultController extends Controller
         return $response;
     }
 
-
     /**
-     * @Route("/{location}/edit", name="edit")
+     * @Route("/{location}/edit", name="edit", host="%domain%", requirements={"location"=".+"})
      * @Method({"GET"})
-     * @Template()
      */
     public function editAction(Request $request, $location)
     {
-        $content = $this->getDoctrine()->getRepository('Pro3xJustPublishBundle:Content')->find($location);
+        $showUrl = $this->generateUrl('show', array('location' => $location, 'host' => $request->getHttpHost()));
+        $unlockUrl = $this->generateUrl('unlock', array('location' => $location));
+        $saveUrl = $this->generateUrl('save', array('location' => $location));
         
-        $params = array('location' => $location, 'showEmail' => true, 'email' => $request->cookies->get('email'));
+        return $this->editLocation($request, $location, $showUrl, $unlockUrl, $saveUrl);
+    }
+    
+    /**
+     * @Route("/{location}/edit", name="hostEdit", host="{host}", requirements={"location"=".*"})
+     * @Method({"GET"})
+     */
+    public function hostEditAction(Request $request, $host, $location)
+    {
+        $showUrl = $this->getShowUrl($host, $location);
+        $hostLocation = $this->getLocation($host, $location);
+        $unlockUrl = $this->generateUrl('hostUnlock', array('location' => $location, 'host' => $host));
+        $saveUrl = $this->generateUrl('hostSave', array('location' => $location, 'host' => $host));
+        
+        return $this->editLocation($request, $hostLocation, $showUrl, $unlockUrl, $saveUrl);
+    }
+    
+    public function editLocation(Request $request, $location, $showUrl, $unlockUrl, $saveUrl)
+    {
+        $content = $this->findLocation($location);
+        
+        $params = array('location' => $location, 'showUrl' => $showUrl, 'saveUrl' => $saveUrl, 'showEmail' => true, 'email' => $request->cookies->get('email'));
         
         if($content)
         {
-            $code = $request->cookies->get(md5($location));
+            $code = $this->findSecretCode($request, $location);
             
-            //compatibility layer, check cookie by location
-            if($code == null)
-            {
-                $code = $request->cookies->get($location);
-            }
-            
-            if($code == $content->getSecret())
+            if($content->isValidSecret($code))
             {
                 $params['body'] = $content->getBody();
                 $params['showEmail'] = false;
             }
             else
             {
-                return $this->redirect($this->generateUrl('unlock', array('location' => $location)));
+                return $this->renderUnlock($unlockUrl);
             }
         }
         else
@@ -207,72 +255,90 @@ class DefaultController extends Controller
             $params['body'] = $this->renderView("Pro3xJustPublishBundle:Default:welcome.html.twig");
         }
         
-        return $params;
+        return $this->render("Pro3xJustPublishBundle:Default:edit.html.twig", $params);
     }
     
-    private function isHome($host)
+    private function findSecretCode($request, $location)
     {
-        if(in_array($host, array('justpublish.org', 'localhost')))
+        $code = $request->cookies->get(md5($location));
+            
+        //compatibility layer, check cookie by location
+        if($code == null)
         {
-            return true;
+            $code = $request->cookies->get($location);
         }
-        else
-        {
-            return false;
-        }
-    }
-    
-    /**
-     * @Route("/", name="home")
-     * @Route("/edit")
-     * @Template()
-     */
-    public function indexAction(Request $request)
-    {
-        $host = $request->getHttpHost();
         
-        if($this->isHome($host))
-        {
-            return array('body' => $this->renderView("Pro3xJustPublishBundle:Default:welcome.html.twig"),
-                'location' => 'home');
-        }
-        else
-        {
-            return $this->showAction($host);
-        }
+        return $code;
+    }
+    
+    private function renderUnlock($location)
+    {
+        return $this->redirect($location);
     }
     
     /**
-     * @Route("/{location}", name="show")
+     * 
+     * @param type $location
+     * @return Content
      */
-    public function showAction($location)
+    private function findLocation($location)
     {
-        $content = $this->getDoctrine()->getRepository('Pro3xJustPublishBundle:Content')->find($location);
-        /* @var $content Content */
-        
-        if($content)
-        {
-            return new Response($content->getBody());
-        }
-        else
-        {
-            return $this->render('Pro3xJustPublishBundle:Default:start.html.twig', array('location' => $location));
-        }
+        return $this->getDoctrine()->getRepository('Pro3xJustPublishBundle:Content')->find($location);
     }
     
     /**
-     * @Route("/{location}/save", name="save")
-     * @Method({"POST"})
+     * @Route("/edit", host="%domain%")
      */
-    public function saveAction(Request $request, $location)
+    public function indexEditAction()
     {
-        if($location != 'home')
+        return $this->redirect($this->generateUrl('home'));
+    }
+    
+    /**
+     * @Route("/edit", name="hostIndexEdit", host="{host}")
+     */
+    public function hostIndexEditAction(Request $request, $host)
+    {
+        return $this->hostEditAction($request, $host, $host);
+    }
+    
+    private function renderHome()
+    {
+        return $this->render("Pro3xJustPublishBundle:Default:index.html.twig");
+    }
+    
+    /**
+     * @Route("/", name="home", host="%domain%")
+     */
+    public function indexAction()
+    {        
+        return $this->renderHome();
+    }
+    
+    /**
+     * @Route("/", host="{host}")
+     */
+    public function hostIndexAction(Request $request, $host)
+    {
+        return $this->showLocation($host, $host, $this->getEditUrl($host, ""));
+    }
+    
+    /**
+     * 
+     * @param type $request
+     * @param type $key
+     * @param \Pro3x\JustPublishBundle\Entity\EmailConfig $config
+     * @return \Symfony\Component\HttpFoundation\Response
+     */
+    private function saveLocation($request, $key, $config)
+    {
+        if($key != 'home')
         {
             $updateEmail = false;
             
             $manager = $this->getDoctrine()->getManager();
 
-            $content = $manager->getRepository("Pro3xJustPublishBundle:Content")->find($location);
+            $content = $manager->getRepository("Pro3xJustPublishBundle:Content")->find($key);
 
             if(!$content)
             {
@@ -299,22 +365,30 @@ class DefaultController extends Controller
                 }
             }       
 
-            $content->setLocation($location);
+            $content->setLocation($key);
             $content->setBody($request->get('body'));
             $content->setPublished(new \DateTime());
 
             $manager->persist($content);
             $manager->flush();
             
-            $view = $this->renderView('Pro3xJustPublishBundle:Default:save-changes.html.twig', array('location' => $location));
+            $view = $this->renderView('Pro3xJustPublishBundle:Default:save-changes.html.twig', array('showUrl' => $config->getShowUrl()));
             
             $response = new Response(json_encode(array('valid' => true, 'replace' => $view)));
-            $response->headers->setCookie(new Cookie(md5($location), $content->getSecret(), time() + (3600 * 24 * 7)));
+            $response->headers->setCookie(new Cookie(md5($key), $content->getSecret(), time() + (3600 * 24 * 7)));
             
             if($updateEmail)
             {
                 $response->headers->setCookie(new Cookie('email', $content->getEmail(), time() + (3600 * 24 * 365)));
-                $this->sendEmail($content);
+                
+                $params = $config->getActivationParams();
+                $params['code'] = $content->getCode();
+                $config->setActivationParams($params);
+                
+                $config->setEmail($content->getEmail());
+                
+                $config->setSecretKey($content->getSecret());
+                $this->sendEmail($config);
             }
             
             return $response;
@@ -322,4 +396,134 @@ class DefaultController extends Controller
         
         return new Response(json_encode(array('valid' => true)));
     }
+    
+    /**
+     * @Route("/{location}/save", host="%domain%", requirements={"location"=".+"})
+     * @Method({"POST"})
+     */
+    public function saveAction(Request $request, $location)
+    {
+        $mc = new \Pro3x\JustPublishBundle\Entity\EmailConfig();
+        
+        $params = array('location' => $location);
+        
+        $mc->setEditUrl($this->generateUrl('edit', $params, true));
+        $mc->setShowUrl($this->generateUrl('show', $params, true));
+        
+        $mc->setActivationParams($params);
+        $mc->setActivateRoute('activate');
+        
+        $mc->setLocation($location);
+        
+        return $this->saveLocation($request, $location, $mc);
+    }
+    
+    private function getShowUrl($host, $location)
+    {
+        if($host == $location)
+        {
+            $showLocation = "";
+        }
+        else
+        {
+            $showLocation = $location;
+        }
+        
+        return $this->generateUrl('show', array('location' => $showLocation, 'host' => $host));
+    }
+    
+    /**
+     * @Route("/{location}/save", name="hostSave", host="{host}", requirements={"location"=".+"})
+     * @Route("/{location}/save", name="save", requirements={"location"=".+"})
+     * @Method({"POST"})
+     */
+    public function hostSaveAction(Request $request, $host, $location)
+    {
+        $mc = new \Pro3x\JustPublishBundle\Entity\EmailConfig();
+        
+        $params = array('host' => $host, 'location' => $location);
+        
+        $mc->setEditUrl($this->generateUrl('hostEdit', $params, true));
+        $mc->setShowUrl($this->generateUrl('show', $params, true));
+        
+        $mc->setActivationParams($params);
+        $mc->setActivateRoute('hostActivate');
+        
+        $mc->setLocation($location);
+        
+        return $this->saveLocation($request, $this->getLocation($host, $location), $mc);
+    }
+    
+    private function getEditUrl($host, $location)
+    {
+        if($host == $location)
+        {
+            
+            return $this->generateUrl('hostIndexEdit', array('host' => $host));
+        }
+        else
+        {
+            return $this->generateUrl('hostEdit', array('location' => $location, 'host' => $host));
+        }
+    }
+    
+    /**
+     * @Route("/{host}/{location}", requirements={"location"=".*"})
+     */
+    public function hostShowPageAction($location, $host)
+    {
+        return $this->showLocation($host, 
+                $this->getLocation($host, $location),
+                $this->getEditUrl($host, $location));
+    }
+    
+    /**
+     * @Route("/{location}", host="%domain%", requirements={"location"=".*"})
+     */
+    public function showAction(Request $request, $location)
+    {
+        return $this->showLocation(
+                $request->getHttpHost(), 
+                $location,
+                $this->generateUrl('edit', array('location' => $location)));
+    }
+    
+    /**
+     * @Route("/{location}", name="show", host="{host}", requirements={"location"=".*"}, defaults={"host"="%domain%"})
+     */
+    public function hostShowAction(Request $request, $host, $location)
+    {
+        return $this->showLocation(
+                $host, 
+                $this->getLocation($host, $location),
+                $this->getEditUrl($host, $location));
+    }
+    
+    private function showLocation($host, $location, $editUrl)
+    {
+        $content = $this->getDoctrine()->getRepository('Pro3xJustPublishBundle:Content')->find($location);
+        /* @var $content Content */
+        
+        if($content)
+        {
+            return new Response($content->getBody());
+        }
+        else
+        {
+            return $this->render('Pro3xJustPublishBundle:Default:start.html.twig', array('editUrl' => $editUrl, 'location' => $location, 'host' => $host));
+        }
+    }
+    
+    private function getLocation($host, $location)
+    {
+        if($host == $location)
+        {
+            return $host;
+        }
+        else
+        {
+            return $host . '/' . $location;
+        }
+    }
+    
 }
