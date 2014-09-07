@@ -236,11 +236,13 @@ class DefaultController extends Controller
     }
         
     /**
-     * @Route("/{location}/edit", name="hostEdit", host="{host}", requirements={"location"=".*"})
+     * @Route("/{location}/edit", name="hostEdit", requirements={"location"=".*"})
      * @Method({"GET"})
      */
-    public function hostEditAction(Request $request, $host, $location)
+    public function hostEditAction(Request $request, $location)
     {
+        $host = $request->getHttpHost();
+        
         $content = $this->findLocation($host);
         
         if($content && $content->isValidSecret($this->findSecretCode($request, $host)) == false)
@@ -323,11 +325,12 @@ class DefaultController extends Controller
     }
     
     /**
-     * @Route("/edit", name="hostIndexEdit", host="{host}")
+     * @Route("/edit", name="hostIndexEdit")
      */
-    public function hostIndexEditAction(Request $request, $host)
+    public function hostIndexEditAction(Request $request)
     {
-        return $this->hostEditAction($request, $host, $host);
+        $host = $request->getHost();
+        return $this->hostEditAction($request, $host);
     }
     
     private function renderHome()
@@ -344,10 +347,11 @@ class DefaultController extends Controller
     }
     
     /**
-     * @Route("/", host="{host}")
+     * @Route("/")
      */
     public function hostIndexAction(Request $request, $host)
     {
+        $host = $request->getHttpHost();
         return $this->showLocation($host, $host, $this->getEditUrl($host, ""));
     }
     
