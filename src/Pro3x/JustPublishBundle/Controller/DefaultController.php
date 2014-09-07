@@ -325,7 +325,7 @@ class DefaultController extends Controller
     }
     
     /**
-     * @Route("/edit", name="hostIndexEdit")
+     * @Route("/edit", name="hostIndexEdit", host="{host}", requirements={"host"=".++"})
      */
     public function hostIndexEditAction(Request $request)
     {
@@ -352,7 +352,7 @@ class DefaultController extends Controller
     public function hostIndexAction(Request $request)
     {
         $host = $request->getHttpHost();
-        return $this->showLocation($host, $host, $this->getEditUrl($host, ""));
+        return $this->showLocation($host, $host, $this->getEditUrl($host, $host));
     }
     
     /**
