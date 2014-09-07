@@ -84,18 +84,20 @@ class DefaultController extends Controller
     public function activateAction(Request $request, $location, $code)
     {
         $host = $request->getHttpHost();
-        return $this->activateLocation($request, $request->getHttpHost(), $location, $location, $code);
+        $showUrl = $this->generateUrl('show', array('location' => $location));
+        return $this->activateLocation($request, $request->getHttpHost(), $location, $location, $code, $showUrl);
     }
     
     /**
-     * @Route("/activate/{location}/{code}", host="{host}", name="hostActivate", requirements={"location"=".+"})
+     * @Route("/activate/{location}/{code}", host="{host}", name="hostActivate", requirements={"location"=".+", "host"=".++"})
      */
     public function hostActivateAction(Request $request, $host, $location, $code)
     {
-        return $this->activateLocation($request, $host, $location, $this->getLocation($host, $location), $code);
+        $showUrl = $this->generateUrl('hostShow', array('location' => $location, 'host' => $host));
+        return $this->activateLocation($request, $host, $location, $this->getLocation($host, $location), $code, $showUrl);
     }
     
-    public function activateLocation(Request $request, $host, $location, $key, $code)
+    public function activateLocation(Request $request, $host, $location, $key, $code, $showUrl)
     {
         $manager = $this->getDoctrine()->getManager();
         $content = $manager->getRepository('Pro3xJustPublishBundle:Content')->find($key); /* @var $content Content */
@@ -110,20 +112,20 @@ class DefaultController extends Controller
 
                 return $this->render('Pro3xJustPublishBundle:Default:activate.html.twig', array(
                     'location' => $location,
-                    'show' => $this->generateUrl('show', array('location' => $location, 'host' => $host))
+                    'show' => $showUrl
                 ));
             }
             else
             {
                 return $this->render('Pro3xJustPublishBundle:Default:activation-repeated.html.twig', array(
                     'location' => $location,
-                    'show' => $this->generateUrl('show', array('location' => $location, 'host' => $host))
+                    'show' => $showUrl
                 ));
             }
         }
         else
         {
-            return $this->render('Pro3xJustPublishBundle:Default:invalid-activation-code.html.twig', array('location' => $location));
+            return $this->render('Pro3xJustPublishBundle:Default:invalid-activation-code.html.twig', array('location' => $location, 'show' => $showUrl));
         }
     }
 
@@ -160,7 +162,7 @@ class DefaultController extends Controller
     }
     
     /**
-     * @Route("/unlock/{location}", name="hostUnlock", host="{host}", requirements={"location"=".+"})
+     * @Route("/unlock/{location}", name="hostUnlock", host="{host}", requirements={"location"=".+", "host"=".++"})
      * @Template("Pro3xJustPublishBundle:Default:unlock.html.twig")
      */
     function hostUnlockAction($location)
@@ -178,7 +180,7 @@ class DefaultController extends Controller
     }
     
     /**
-     * @Route("/check/{location}", name="check", host="{host}", requirements={"location"=".+"})
+     * @Route("/check/{location}", name="check", host="{host}", requirements={"location"=".+", "host"=".++"})
      */
     public function hostCheckLockAction(Request $request, $location, $host)
     {
@@ -228,7 +230,7 @@ class DefaultController extends Controller
      */
     public function editAction(Request $request, $location)
     {
-        $showUrl = $this->generateUrl('show', array('location' => $location, 'host' => $request->getHttpHost()));
+        $showUrl = $this->generateUrl('show', array('location' => $location));
         $unlockUrl = $this->generateUrl('unlock', array('location' => $location));
         $saveUrl = $this->generateUrl('save', array('location' => $location));
         
@@ -236,13 +238,11 @@ class DefaultController extends Controller
     }
         
     /**
-     * @Route("/{location}/edit", name="hostEdit", requirements={"location"=".*"})
+     * @Route("/{location}/edit", host="{host}", name="hostEdit", requirements={"location"=".*", "host"=".++"})
      * @Method({"GET"})
      */
-    public function hostEditAction(Request $request, $location)
+    public function hostEditAction(Request $request, $host, $location)
     {
-        $host = $request->getHttpHost();
-        
         $content = $this->findLocation($host);
         
         if($content && $content->isValidSecret($this->findSecretCode($request, $host)) == false)
@@ -330,7 +330,7 @@ class DefaultController extends Controller
     public function hostIndexEditAction(Request $request)
     {
         $host = $request->getHost();
-        return $this->hostEditAction($request, $host);
+        return $this->hostEditAction($request, $host, $host);
     }
     
     private function renderHome()
@@ -430,12 +430,13 @@ class DefaultController extends Controller
     }
     
     /**
-     * @Route("/{location}/save", host="%domain%", requirements={"location"=".+"})
+     * @Route("/{location}/save", host="%domain%", requirements={"location"=".+", "host"=".++"})
      * @Method({"POST"})
      */
     public function saveAction(Request $request, $location)
     {
         $mc = new \Pro3x\JustPublishBundle\Entity\EmailConfig();
+        $host = $request->getHttpHost();
         
         $params = array('location' => $location);
         
@@ -461,11 +462,11 @@ class DefaultController extends Controller
             $showLocation = $location;
         }
         
-        return $this->generateUrl('show', array('location' => $showLocation, 'host' => $host));
+        return $this->generateUrl('hostShow', array('location' => $showLocation, 'host' => $host), true);
     }
     
     /**
-     * @Route("/{location}/save", name="hostSave", host="{host}", requirements={"location"=".+"})
+     * @Route("/{location}/save", name="hostSave", host="{host}", requirements={"location"=".+", "host"=".++"})
      * @Route("/{location}/save", name="save", requirements={"location"=".+"})
      * @Method({"POST"})
      */
@@ -476,7 +477,7 @@ class DefaultController extends Controller
         $params = array('host' => $host, 'location' => $location);
         
         $mc->setEditUrl($this->generateUrl('hostEdit', $params, true));
-        $mc->setShowUrl($this->generateUrl('show', $params, true));
+        $mc->setShowUrl($this->getShowUrl($host, $location));
         
         $mc->setActivationParams($params);
         $mc->setActivateRoute('hostActivate');
@@ -490,7 +491,6 @@ class DefaultController extends Controller
     {
         if($host == $location)
         {
-            
             return $this->generateUrl('hostIndexEdit', array('host' => $host));
         }
         else
@@ -510,7 +510,7 @@ class DefaultController extends Controller
     }
     
     /**
-     * @Route("/{location}", host="%domain%", requirements={"location"=".*"})
+     * @Route("/{location}", name="show", host="%domain%", requirements={"location"=".*"})
      */
     public function showAction(Request $request, $location)
     {
@@ -521,7 +521,7 @@ class DefaultController extends Controller
     }
     
     /**
-     * @Route("/{location}", name="show", host="{host}", requirements={"location"=".*"}, defaults={"host"="%domain%"})
+     * @Route("/{location}", name="hostShow", host="{host}", requirements={"location"=".*", "host"=".++"})
      */
     public function hostShowAction(Request $request, $host, $location)
     {
