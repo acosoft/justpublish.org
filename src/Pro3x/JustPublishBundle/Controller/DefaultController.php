@@ -349,7 +349,7 @@ class DefaultController extends Controller
     /**
      * @Route("/")
      */
-    public function hostIndexAction(Request $request, $host)
+    public function hostIndexAction(Request $request)
     {
         $host = $request->getHttpHost();
         return $this->showLocation($host, $host, $this->getEditUrl($host, ""));
