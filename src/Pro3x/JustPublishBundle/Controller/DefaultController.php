@@ -500,7 +500,7 @@ class DefaultController extends Controller
     }
     
     /**
-     * @Route("/{location}", requirements={"location"=".*\.mailto"})
+     * @Route("/{location}", host="{host}", requirements={"location"=".*\.mailto", "host"=".++"})
      */
     public function mailto(Request $request, $location)
     {
@@ -509,7 +509,7 @@ class DefaultController extends Controller
         $a = $request->get('a');
         $b = $request->get('b');
         
-        $content = $this->findLocation($location);
+        $content = $this->findLocation($this->getLocation($host, $location));
         
         if(!$email) {
             return new \Symfony\Component\HttpFoundation\JsonResponse(array('status' => 'error', 'description' => 'Missing parameter: email'));
@@ -539,8 +539,6 @@ class DefaultController extends Controller
             
             return new \Symfony\Component\HttpFoundation\JsonResponse(array('status' => 'delivered', 'body' => $body));
         }
-            
-        
     }
     
     /**
