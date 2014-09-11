@@ -502,7 +502,7 @@ class DefaultController extends Controller
     /**
      * @Route("/{location}", host="{host}", requirements={"location"=".*\.mailto", "host"=".++"})
      */
-    public function mailto(Request $request, $location)
+    public function mailto(Request $request, $host, $location)
     {
         $email = $request->get('email', null);
         
@@ -537,7 +537,7 @@ class DefaultController extends Controller
             
             $this->get('mailer')->send($message);
             
-            return new \Symfony\Component\HttpFoundation\JsonResponse(array('status' => 'delivered', 'body' => $body));
+            return new \Symfony\Component\HttpFoundation\JsonResponse(array('status' => 'delivered'));
         }
     }
     
