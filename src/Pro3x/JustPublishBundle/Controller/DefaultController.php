@@ -500,6 +500,50 @@ class DefaultController extends Controller
     }
     
     /**
+     * @Route("/{location}", requirements={"location"=".*\.mailto"})
+     */
+    public function mailto(Request $request, $location)
+    {
+        $email = $request->get('email', null);
+        
+        $a = $request->get('a');
+        $b = $request->get('b');
+        
+        $content = $this->findLocation($location);
+        
+        if(!$email) {
+            return new \Symfony\Component\HttpFoundation\JsonResponse(array('status' => 'error', 'description' => 'Missing parameter: email'));
+        } else if(!$content) { 
+            return new \Symfony\Component\HttpFoundation\JsonResponse(array('status' => 'error', 'description' => "Unknown template: $location"));
+        } else if ($a - $b != 1002) {
+            return new \Symfony\Component\HttpFoundation\JsonResponse(array('status' => 'error', 'description' => 'Invalid script result'));
+        } else {
+            $params = $request->get('xp', array());
+            
+            $keys = array();
+            $values = array();
+            
+            foreach ($params as $key => $value) {
+                $keys[] = '{{' . $key . '}}';
+                $values[] = $value;
+            }
+            
+            $body = str_replace($keys, $values, $content->getBody());
+            
+            $message = \Swift_Message::newInstance("JustPublish.org: Message from $location", $body, 'text/html', 'utf8')
+                    ->setSender('acosoft@gmail.com')
+                    ->setTo($content->getEmail())
+                    ->setReplyTo($email);
+            
+            $this->get('mailer')->send($message);
+            
+            return new \Symfony\Component\HttpFoundation\JsonResponse(array('status' => 'delivered', 'body' => $body));
+        }
+            
+        
+    }
+    
+    /**
      * @Route("/{host}/{location}", requirements={"location"=".*"})
      */
     public function hostShowPageAction($location, $host)
